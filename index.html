@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PokéVault - Ultimate Collector Experience</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+          colors: { dark: { 900: '#0b0f19', 800: '#111827', 700: '#1f2937', 600: '#374151' } }
+        }
+      }
+    }
+  </script>
+  <style>
+    .card-holo {
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transform-style: preserve-3d;
+    }
+    .card-holo:hover {
+      transform: translateY(-8px) rotateX(5deg) rotateY(-5deg);
+      box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.6), 0 10px 15px -5px rgba(168, 85, 247, 0.4);
+    }
+    .card-holo::after {
+      content: "";
+      position: absolute;
+      top: -50%; left: -50%; width: 200%; height: 200%;
+      background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.3) 40%, rgba(255, 255, 255, 0.6) 45%, transparent 50%);
+      transform: rotate(30deg) translateY(-100%);
+      transition: transform 0.6s ease;
+      pointer-events: none;
+    }
+    .card-holo:hover::after { transform: rotate(30deg) translateY(100%); }
+
+    @keyframes celebrateBounce {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.9); }
+      40% { transform: scale(1.08) rotate(2deg); box-shadow: 0 0 30px 10px rgba(234, 179, 8, 0.6); }
+      70% { transform: scale(0.95) rotate(-2deg); }
+      100% { transform: scale(1) rotate(0); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+    }
+    .celebrate-bounce {
+      animation: celebrateBounce 0.7s ease-in-out;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-dark-900 text-gray-100 font-sans min-h-screen flex flex-col antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-gray-800 bg-dark-800/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+          <i class="fa-solid fa-sparkles text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">PokéVault</h1>
+          <p class="text-xs text-gray-400 font-medium">Ultimate Collector Experience</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-3">
+        <button id="openSearchModalBtn" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm transition flex items-center space-x-2 shadow-lg shadow-purple-600/20">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden sm:inline">Ajouter des Chase Cards</span>
+        </button>
+        <button id="exportDataBtn" title="Exporter Sauvegarde JSON" class="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition border border-gray-700">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <label title="Importer Sauvegarde JSON" class="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition border border-gray-700 cursor-pointer">
+          <i class="fa-solid fa-upload"></i>
+          <input type="file" id="importFileInput" class="hidden" accept=".json">
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Navigation Views & Dynamic Pages Bar -->
+    <div class="bg-dark-800 p-4 rounded-2xl border border-gray-800 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex bg-dark-900 p-1 rounded-xl border border-gray-800 w-full md:w-auto">
+        <button id="viewChaseBtn" class="view-btn px-4 py-2 rounded-lg text-sm font-bold text-white bg-purple-600 transition flex-1 md:flex-none flex items-center justify-center gap-2">
+          <i class="fa-solid fa-crosshairs"></i> Chase Cards (<span id="countChaseView">0</span>)
+        </button>
+        <button id="viewOwnedBtn" class="view-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition flex-1 md:flex-none flex items-center justify-center gap-2">
+          <i class="fa-solid fa-box-archive"></i> Cartes Possédées (<span id="countOwnedView">0</span>)
+        </button>
+      </div>
+
+      <div class="flex items-center space-x-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Pages perso :</span>
+        <div id="customPagesContainer" class="flex items-center space-x-2"></div>
+        <button id="managePagesBtn" title="Gérer les pages" class="p-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white text-xs transition">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+        <button id="addNewPageBtn" class="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 text-xs font-semibold transition whitespace-nowrap">
+          <i class="fa-solid fa-plus mr-1"></i> Nouvelle Page
+        </button>
+      </div>
+    </div>
+
+    <!-- Dashboard Analytique Dynamique -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-dark-800 p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
+        <div>
+          <p id="labelStat1" class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Investi</p>
+          <h3 id="statInvested" class="text-2xl font-bold text-gray-200 mt-1">0,00 €</h3>
+          <p id="subStat1" class="text-[10px] text-gray-500 mt-0.5">Somme des achats</p>
+        </div>
+        <div id="iconStat1Container" class="w-12 h-12 rounded-xl bg-gray-500/10 text-gray-400 flex items-center justify-center text-xl">
+          <i id="iconStat1" class="fa-solid fa-wallet"></i>
+        </div>
+      </div>
+
+      <div class="bg-dark-800 p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
+        <div>
+          <p id="labelStat2" class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Cote Actuelle</p>
+          <h3 id="statMarketValue" class="text-2xl font-bold text-emerald-400 mt-1">0,00 €</h3>
+          <p id="subStat2" class="text-[10px] text-gray-500 mt-0.5">Valeur Cardmarket</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+      </div>
+
+      <div class="bg-dark-800 p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
+        <div>
+          <p id="labelStat3" class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Bénéfice Potentiel</p>
+          <h3 id="statProfit" class="text-2xl font-bold text-emerald-400 mt-1">+0,00 €</h3>
+          <p id="subStat3" class="text-[10px] text-gray-500 mt-0.5">Plus-value nette</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-coins"></i>
+        </div>
+      </div>
+
+      <div class="bg-dark-800 p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
+        <div>
+          <p id="labelStat4" class="text-xs font-semibold text-gray-400 uppercase tracking-wider">ROI / Rentabilité</p>
+          <h3 id="statROI" class="text-2xl font-bold text-emerald-400 mt-1">0.00%</h3>
+          <p id="subStat4" class="text-[10px] text-gray-500 mt-0.5">Performance globale</p>
+        </div>
+        <div id="statROIIcon" class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-arrow-trend-up"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-dark-800 p-4 rounded-2xl border border-gray-800 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div class="relative flex-1 w-full md:w-auto">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+        <input type="text" id="filterSearchInput" placeholder="Rechercher par nom, série, numéro..." class="w-full bg-dark-900 border border-gray-800 text-sm rounded-xl pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition">
+      </div>
+
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <select id="filterSetSelect" class="bg-dark-900 border border-gray-800 text-sm rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500 transition flex-1 md:flex-none">
+          <option value="ALL">Toutes les extensions affichées</option>
+        </select>
+
+        <select id="sortBySelect" class="bg-dark-900 border border-gray-800 text-sm rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500 transition flex-1 md:flex-none">
+          <option value="recent">Plus récent</option>
+          <option value="price_desc">Cote Cardmarket ↓</option>
+          <option value="price_asc">Cote Cardmarket ↑</option>
+          <option value="name_asc">Nom (A-Z)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div id="cardsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+
+    <div id="emptyState" class="hidden text-center py-16 bg-dark-800/40 rounded-3xl border border-dashed border-gray-800">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-800/50 flex items-center justify-center text-gray-500 text-2xl">
+        <i class="fa-solid fa-box-open"></i>
+      </div>
+      <h3 class="text-lg font-bold text-gray-300">Aucune carte trouvée</h3>
+      <p class="text-sm text-gray-500 mt-1">Commencez par ajouter vos premières Chase Cards en haut !</p>
+    </div>
+
+  </main>
+
+  <!-- Modal Lightbox / Zoom Image -->
+  <div id="imageModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[70] flex items-center justify-center p-4 hidden">
+    <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+      <button id="closeImageModalBtn" class="absolute -top-12 right-0 text-gray-300 hover:text-white text-2xl p-2 bg-dark-800 rounded-full w-10 h-10 flex items-center justify-center shadow-lg border border-gray-700 transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <img id="modalZoomImg" src="" alt="Zoom Card" class="max-w-full max-h-[82vh] object-contain rounded-2xl shadow-2xl border border-purple-500/30">
+      <p id="modalZoomTitle" class="mt-4 text-sm font-bold text-white bg-dark-800/80 px-4 py-2 rounded-xl border border-gray-700"></p>
+    </div>
+  </div>
+
+  <!-- Modal Gestion des Pages -->
+  <div id="managePagesModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-dark-800 border border-gray-800 rounded-3xl w-full max-w-md flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-5 border-b border-gray-800 flex items-center justify-between bg-dark-900/40">
+        <h3 class="font-bold text-white text-sm">Gérer les pages personnalisées</h3>
+        <button id="closeManageModalBtn" class="text-gray-400 hover:text-white p-2"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-3 max-h-[60vh] overflow-y-auto" id="managePagesListContainer"></div>
+      <div class="p-4 border-t border-gray-800 bg-dark-900/50 text-right">
+        <button id="closeManageModalDoneBtn" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl transition">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Recherche & Édition -->
+  <div id="searchModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-dark-800 border border-gray-800 rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      
+      <div class="p-5 border-b border-gray-800 flex items-center justify-between bg-dark-900/40">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+          </div>
+          <div>
+            <h2 id="modalTitle" class="text-base font-bold text-white">Ajouter une Chase Card</h2>
+            <p class="text-xs text-gray-400">Recherche par série et filtrage par Pokémon</p>
+          </div>
+        </div>
+        <button id="closeSearchModalBtn" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-6 flex-1">
+        
+        <!-- 1. Recherche API TCGdex -->
+        <div class="bg-dark-900/80 p-4 rounded-2xl border border-gray-800 space-y-4">
+          <h4 class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-filter"></i> 1. Sélectionner depuis l'extension
+          </h4>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Choisir l'extension</label>
+              <select id="apiSetSelect" class="w-full bg-dark-900 border border-gray-700 text-sm rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                <option value="">Chargement des séries...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Filtrer par Pokémon (optionnel)</label>
+              <div class="flex gap-2">
+                <input type="text" id="apiPokemonInput" placeholder="ex: Evoli, Dracaufeu..." class="flex-1 bg-dark-900 border border-gray-700 text-sm rounded-xl px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500">
+                <button id="triggerSetSearchBtn" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition">Afficher</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="apiSearchResults" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 max-h-[220px] overflow-y-auto p-1 pt-2 border border-gray-800/60 rounded-xl bg-dark-900/50">
+            <span class="text-xs text-gray-500 col-span-full text-center py-6">Sélectionnez une série pour charger les cartes.</span>
+          </div>
+        </div>
+
+        <!-- 2. Aperçu Visuel Contrôlé -->
+        <div class="bg-dark-900/60 p-4 rounded-2xl border border-gray-800 flex flex-col items-center justify-center">
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-eye text-purple-400"></i> 2. Aperçu (survoler ou cliquer pour zoomer)
+          </span>
+          <div onclick="openImageModalFromPreview()" class="w-32 h-44 bg-dark-900 rounded-xl border border-gray-700 overflow-hidden flex items-center justify-center shadow-inner relative cursor-pointer group">
+            <img id="formCardImagePreview" src="" alt="Aperçu" class="w-full h-full object-contain transition duration-300 group-hover:scale-110 hidden">
+            <div id="formCardImagePlaceholder" class="text-center p-2 text-gray-600 text-[11px] italic">
+              Aucune image
+            </div>
+            <div class="absolute inset-0 bg-purple-900/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
+              <i class="fa-solid fa-magnifying-glass-plus text-lg"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Informations & Configuration de la Carte -->
+        <div class="bg-dark-900/40 p-4 rounded-2xl border border-gray-800 space-y-4">
+          <h4 class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-pen-to-square"></i> 3. Paramètres & Données
+          </h4>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Nom de la carte *</label>
+              <input type="text" id="formCardName" placeholder="ex: Évoli ex" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Extension / Série</label>
+              <input type="text" id="formCardSet" placeholder="ex: Évolutions Prismatiques" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Numéro</label>
+              <input type="text" id="formCardNumber" placeholder="ex: 160/142" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Statut initial</label>
+              <select id="formCardStatus" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                <option value="CHASE">Chase Card (Recherchée)</option>
+                <option value="OWNED">Possédée (Déjà obtenue)</option>
+              </select>
+            </div>
+
+            <!-- Options d'acquisition dynamiques -->
+            <div id="originGroup" class="contents">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Mode d'obtention</label>
+                <select id="formCardOrigin" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                  <option value="PULL">🎁 Droppé / Pull (Booster)</option>
+                  <option value="BUY">🛒 Acheté à l'unité (Single)</option>
+                </select>
+              </div>
+              <div id="buyPriceContainer">
+                <label class="block text-xs text-gray-400 mb-1">Prix d'achat (€)</label>
+                <input type="number" step="0.01" id="formCardBuyPrice" placeholder="0.00" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Cote Cardmarket (€)</label>
+              <input type="number" step="0.01" id="formCardMarketPrice" placeholder="0.00" class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            </div>
+
+            <div class="sm:col-span-3">
+              <label class="block text-xs text-gray-400 mb-1 font-semibold text-purple-400">Pages personnalisées à associer</label>
+              <div id="formPagesCheckboxes" class="flex flex-wrap gap-3 pt-2"></div>
+            </div>
+
+            <div class="sm:col-span-3">
+              <label class="block text-xs text-gray-400 mb-1">Lien direct Cardmarket</label>
+              <input type="text" id="formCardMarketUrl" placeholder="https://www.cardmarket.com/fr/Pokemon/..." class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            </div>
+            
+            <div class="sm:col-span-3">
+              <label class="block text-xs text-gray-400 mb-1">URL Image</label>
+              <input type="text" id="formCardImage" placeholder="https://..." class="w-full bg-dark-900 border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="p-4 border-t border-gray-800 bg-dark-900/50 flex justify-end space-x-3">
+        <button id="cancelAddBtn" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white transition">Annuler</button>
+        <button id="saveCardBtn" class="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-500 transition shadow-lg shadow-purple-600/20">Enregistrer</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Script Application -->
+  <script>
+    const STORAGE_KEY = 'pokevault_public_db';
+    const PAGES_KEY = 'pokevault_custom_pages';
+    let editingCardId = null;
+    let currentView = 'CHASE'; 
+    let customPages = JSON.parse(localStorage.getItem(PAGES_KEY)) || [];
+    let tcgdexSetsCache = [];
+    let loadedSetCards = [];
+    let inventory = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+    function playSuccessSoundAndConfetti() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, index) => {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime + index * 0.08);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + index * 0.08 + 0.4);
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + index * 0.08);
+          osc.stop(audioCtx.currentTime + index * 0.08 + 0.4);
+        });
+      } catch (e) {}
+
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#a855f7', '#3b82f6', '#eab308', '#ec4899', '#10b981']
+        });
+      }
+    }
+
+    function normalizeStr(str) {
+      return (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function saveAppData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+      localStorage.setItem(PAGES_KEY, JSON.stringify(customPages));
+      renderApp();
+    }
+
+    function updateImagePreview(url) {
+      const previewImg = document.getElementById('formCardImagePreview');
+      const placeholder = document.getElementById('formCardImagePlaceholder');
+      if (url && url.trim() !== '') {
+        previewImg.src = url.trim();
+        previewImg.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+      } else {
+        previewImg.src = '';
+        previewImg.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('formCardImage').oninput = (e) => {
+      updateImagePreview(e.target.value);
+    };
+
+    const imageModal = document.getElementById('imageModal');
+    const modalZoomImg = document.getElementById('modalZoomImg');
+    const modalZoomTitle = document.getElementById('modalZoomTitle');
+
+    window.openImageLightbox = function(imageUrl, cardTitle) {
+      if (!imageUrl) return;
+      modalZoomImg.src = imageUrl;
+      modalZoomTitle.innerText = cardTitle || 'Aperçu de la carte';
+      imageModal.classList.remove('hidden');
+    }
+
+    function openImageModalFromPreview() {
+      const url = document.getElementById('formCardImage').value;
+      const title = document.getElementById('formCardName').value || 'Aperçu de la carte';
+      if (url) openImageLightbox(url, title);
+    }
+
+    document.getElementById('closeImageModalBtn').onclick = () => imageModal.classList.add('hidden');
+    imageModal.onclick = (e) => {
+      if (e.target === imageModal) imageModal.classList.add('hidden');
+    };
+
+    function toggleOriginFieldsVisibility() {
+      const status = document.getElementById('formCardStatus').value;
+      const originGroup = document.getElementById('originGroup');
+      if (status === 'CHASE') {
+        originGroup.style.display = 'none';
+      } else {
+        originGroup.style.display = 'contents';
+        const origin = document.getElementById('formCardOrigin').value;
+        document.getElementById('buyPriceContainer').style.display = origin === 'BUY' ? 'block' : 'none';
+      }
+    }
+
+    document.getElementById('formCardStatus').onchange = toggleOriginFieldsVisibility;
+    document.getElementById('formCardOrigin').onchange = toggleOriginFieldsVisibility;
+
+    function renderCustomPagesNav() {
+      const container = document.getElementById('customPagesContainer');
+      container.innerHTML = '';
+
+      customPages.forEach(pageName => {
+        const btn = document.createElement('button');
+        const isActive = currentView === pageName;
+        btn.className = `px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5 ${
+          isActive ? 'bg-purple-600 text-white shadow-md' : 'bg-dark-900 text-gray-400 hover:text-white border border-gray-800'
+        }`;
+        btn.innerHTML = `<i class="fa-solid fa-folder-open"></i> ${pageName}`;
+        btn.onclick = () => {
+          currentView = pageName;
+          setActiveNavStyles();
+          renderApp();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function setActiveNavStyles() {
+      document.querySelectorAll('.view-btn').forEach(b => {
+        b.className = 'view-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition flex-1 md:flex-none flex items-center justify-center gap-2 bg-dark-900 border border-gray-800';
+      });
+
+      if (currentView === 'CHASE') {
+        document.getElementById('viewChaseBtn').className = 'view-btn px-4 py-2 rounded-lg text-sm font-bold text-white bg-purple-600 transition flex-1 md:flex-none flex items-center justify-center gap-2';
+      } else if (currentView === 'OWNED') {
+        document.getElementById('viewOwnedBtn').className = 'view-btn px-4 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 transition flex-1 md:flex-none flex items-center justify-center gap-2';
+      }
+      renderCustomPagesNav();
+    }
+
+    function updateStats() {
+      let filtered = [];
+      if (currentView === 'CHASE') {
+        filtered = inventory.filter(c => c.status === 'CHASE');
+      } else if (currentView === 'OWNED') {
+        filtered = inventory.filter(c => c.status === 'OWNED');
+      } else {
+        filtered = inventory.filter(c => c.status === 'OWNED' && c.pages && c.pages.includes(currentView));
+      }
+
+      const isChaseView = currentView === 'CHASE';
+
+      if (isChaseView) {
+        document.getElementById('labelStat1').innerText = "Total Chase Cards";
+        document.getElementById('statInvested').innerText = filtered.length;
+        document.getElementById('subStat1').innerText = "Cartes recherchées";
+        document.getElementById('iconStat1').className = "fa-solid fa-crosshairs";
+        document.getElementById('iconStat1Container').className = "w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl";
+
+        const totalChaseMarket = filtered.reduce((sum, c) => sum + (Number(c.marketPrice) || 0), 0);
+        document.getElementById('labelStat2').innerText = "Cote Totale Wishlist";
+        document.getElementById('statMarketValue').innerText = totalChaseMarket.toFixed(2) + ' €';
+        document.getElementById('subStat2').innerText = "Valeur cumulée recherchée";
+
+        document.getElementById('labelStat3').innerText = "Cartes Obtenues";
+        const totalOwned = inventory.filter(c => c.status === 'OWNED').length;
+        document.getElementById('statProfit').innerText = totalOwned;
+        document.getElementById('statProfit').className = "text-2xl font-bold text-blue-400 mt-1";
+        document.getElementById('subStat3').innerText = "Dans votre collection";
+
+        document.getElementById('labelStat4').innerText = "Taux de Complétion";
+        const totalAll = inventory.length;
+        const completionRate = totalAll > 0 ? (totalOwned / totalAll) * 100 : 0;
+        document.getElementById('statROI').innerText = completionRate.toFixed(1) + '%';
+        document.getElementById('statROI').className = "text-2xl font-bold text-purple-400 mt-1";
+        document.getElementById('statROIIcon').className = "w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl";
+        document.getElementById('statROIIcon').innerHTML = `<i class="fa-solid fa-trophy"></i>`;
+      } else {
+        document.getElementById('labelStat1').innerText = "Total Investi (Singles)";
+        const totalInvested = filtered.reduce((sum, c) => {
+          if (c.origin === 'PULL') return sum;
+          return sum + (Number(c.buyPrice) || 0);
+        }, 0);
+        document.getElementById('statInvested').innerText = totalInvested.toFixed(2) + ' €';
+        document.getElementById('subStat1').innerText = "Achats unitaires (Singles)";
+        document.getElementById('iconStat1').className = "fa-solid fa-wallet";
+        document.getElementById('iconStat1Container').className = "w-12 h-12 rounded-xl bg-gray-500/10 text-gray-400 flex items-center justify-center text-xl";
+
+        document.getElementById('labelStat2').innerText = "Cote Actuelle";
+        const totalMarket = filtered.reduce((sum, c) => sum + (Number(c.marketPrice) || 0), 0);
+        document.getElementById('statMarketValue').innerText = totalMarket.toFixed(2) + ' €';
+        document.getElementById('subStat2').innerText = "Estimation Cardmarket";
+
+        document.getElementById('labelStat3').innerText = "Valeur Nette / Bénéfice";
+        const profit = totalMarket - totalInvested;
+        const profitElem = document.getElementById('statProfit');
+        profitElem.innerText = (profit >= 0 ? '+' : '') + profit.toFixed(2) + ' €';
+        profitElem.className = `text-2xl font-bold mt-1 ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+        document.getElementById('subStat3').innerText = "Inclut les pulls (bénéfice brut)";
+
+        document.getElementById('labelStat4').innerText = "ROI / Rentabilité";
+        const roi = totalInvested > 0 ? (profit / totalInvested) * 100 : (totalMarket > 0 ? 100 : 0);
+        const roiElem = document.getElementById('statROI');
+        const roiIcon = document.getElementById('statROIIcon');
+        roiElem.innerText = (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%';
+        roiElem.className = `text-2xl font-bold mt-1 ${roi >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+        roiIcon.className = `w-12 h-12 rounded-xl flex items-center justify-center text-xl ${roi >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`;
+        roiIcon.innerHTML = `<i class="fa-solid ${roi >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}"></i>`;
+      }
+
+      document.getElementById('countChaseView').innerText = inventory.filter(c => c.status === 'CHASE').length;
+      document.getElementById('countOwnedView').innerText = inventory.filter(c => c.status === 'OWNED').length;
+    }
+
+    function updateSetSelectOptions() {
+      const select = document.getElementById('filterSetSelect');
+      const currentVal = select.value;
+      const sets = Array.from(new Set(inventory.map(c => c.setName))).filter(Boolean);
+
+      select.innerHTML = '<option value="ALL">Toutes les extensions affichées</option>';
+      sets.forEach(set => {
+        const opt = document.createElement('option');
+        opt.value = set;
+        opt.textContent = set;
+        select.appendChild(opt);
+      });
+      select.value = currentVal;
+    }
+
+    function renderApp() {
+      setActiveNavStyles();
+      updateStats();
+      updateSetSelectOptions();
+
+      const grid = document.getElementById('cardsGrid');
+      const emptyState = document.getElementById('emptyState');
+      grid.innerHTML = '';
+
+      const query = normalizeStr(document.getElementById('filterSearchInput').value);
+      const setFilter = document.getElementById('filterSetSelect').value;
+      const sortBy = document.getElementById('sortBySelect').value;
+
+      let filtered = inventory.filter(card => {
+        if (currentView === 'CHASE') {
+          if (card.status !== 'CHASE') return false;
+        } else if (currentView === 'OWNED') {
+          if (card.status !== 'OWNED') return false;
+        } else {
+          if (card.status !== 'OWNED' || !card.pages || !card.pages.includes(currentView)) return false;
+        }
+
+        if (setFilter !== 'ALL' && card.setName !== setFilter) return false;
+        
+        if (query) {
+          return normalizeStr(card.name).includes(query) || 
+                 normalizeStr(card.setName).includes(query) || 
+                 normalizeStr(card.number).includes(query);
+        }
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'price_desc') return (b.marketPrice || 0) - (a.marketPrice || 0);
+        if (sortBy === 'price_asc') return (a.marketPrice || 0) - (b.marketPrice || 0);
+        if (sortBy === 'name_asc') return a.name.localeCompare(b.name);
+        return (b.addedAt || 0) - (a.addedAt || 0);
+      });
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      filtered.forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'bg-dark-800 rounded-2xl border border-gray-800 overflow-hidden card-holo flex flex-col group';
+        if (card._justObtained) {
+          cardEl.classList.add('celebrate-bounce');
+          delete card._justObtained;
+        }
+
+        const isChase = card.status === 'CHASE';
+        const isPull = card.origin === 'PULL';
+        const buy = Number(card.buyPrice) || 0;
+        const market = Number(card.marketPrice) || 0;
+
+        cardEl.innerHTML = `
+          <div class="relative aspect-[3/4] bg-dark-900 flex items-center justify-center p-2 cursor-pointer group/img" onclick="openImageLightbox('${card.image || ''}', '${card.name.replace(/'/g, "\\'")}')">
+            ${card.image ? 
+              `<img src="${card.image}" alt="${card.name}" class="w-full h-full object-contain rounded-lg transition duration-300 group-hover/img:scale-110">` :
+              `<div class="w-full h-full rounded-xl bg-gradient-to-tr from-gray-800 to-gray-700 flex flex-col items-center justify-center p-4 text-center border border-gray-600">
+                <i class="fa-solid fa-sparkles text-2xl text-yellow-400 mb-2"></i>
+                <span class="font-bold text-sm text-white">${card.name}</span>
+                <span class="text-xs text-gray-400 mt-1">${card.setName || 'Carte'}</span>
+              </div>`
+            }
+            <div class="absolute inset-0 bg-purple-900/30 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center text-white text-xs font-bold rounded-lg pointer-events-none">
+              <i class="fa-solid fa-magnifying-glass-plus text-xl drop-shadow-md"></i>
+            </div>
+            ${!isChase ? `
+              <div class="absolute top-3 left-3 flex flex-col gap-1 pointer-events-none">
+                <span class="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase shadow bg-black/60 backdrop-blur-md text-amber-300 border border-amber-400/30">
+                  ${isPull ? '🎁 Pull' : '🛒 Achat'}
+                </span>
+              </div>
+            ` : ''}
+            <span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase shadow-md pointer-events-none ${
+              isChase ? 'bg-purple-600/90 text-white border border-purple-400/30' : 'bg-blue-600/90 text-white border border-blue-400/30'
+            }">
+              ${isChase ? 'Chase' : 'Possédée'}
+            </span>
+          </div>
+          
+          <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-start justify-between">
+                <h4 class="font-bold text-white text-sm line-clamp-1 group-hover:text-purple-400 transition">${card.name}</h4>
+                <span class="text-xs font-semibold text-gray-500">${card.number || ''}</span>
+              </div>
+              <p class="text-xs text-gray-400 truncate mt-0.5">${card.setName || 'Série inconnue'}</p>
+            </div>
+
+            <div class="pt-2 border-t border-gray-800 flex items-center justify-between text-xs">
+              <div>
+                <span class="text-gray-500 block text-[10px]">Cote Est.</span>
+                <span class="font-bold text-emerald-400">${market ? market.toFixed(2) + ' €' : '0.00 €'}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-gray-500 block text-[10px]">Coût d'achat</span>
+                <span class="font-semibold text-gray-300">
+                  ${isChase ? '<span class="text-gray-500 italic">Recherchée</span>' : (isPull ? '<span class="text-amber-400 font-bold">Pull (0 €)</span>' : (buy ? buy.toFixed(2) + ' €' : '-'))}
+                </span>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 pt-1">
+              ${card.cardmarketUrl ? `
+                <a href="${card.cardmarketUrl}" target="_blank" rel="noopener noreferrer" class="w-full py-1.5 px-2 rounded-lg bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 text-xs font-semibold transition flex items-center justify-center space-x-1.5 border border-purple-500/20">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                  <span>Cardmarket</span>
+                </a>
+              ` : ''}
+              
+              <div class="flex items-center space-x-1.5">
+                <button onclick="${isChase ? `markAsOwnedAndEdit('${card.id}')` : `openEditModal('${card.id}')`}" class="flex-1 py-1.5 rounded-lg ${isChase ? 'bg-emerald-600/80 hover:bg-emerald-600 text-white' : 'bg-gray-700/50 hover:bg-gray-700 text-gray-300'} text-xs font-semibold transition text-center shadow" title="${isChase ? 'Marquer comme obtenue' : 'Éditer'}">
+                  ${isChase ? '<i class="fa-solid fa-trophy mr-1 text-yellow-300"></i> Obtenue !' : 'Remettre Chase'}
+                </button>
+                <button onclick="openEditModal('${card.id}')" class="p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs transition" title="Éditer">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="deleteCard('${card.id}')" class="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs transition" title="Supprimer">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        `;
+        grid.appendChild(cardEl);
+      });
+    }
+
+    async function fetchTCGdexSets() {
+      const select = document.getElementById('apiSetSelect');
+      if (tcgdexSetsCache.length > 0) return;
+
+      try {
+        const res = await fetch('https://api.tcgdex.net/v2/fr/sets');
+        let sets = await res.json();
+        
+        // Inverser l'ordre fourni par l'API pour que le plus récent soit tout en haut et le plus vieux (Set de Base) tout en bas
+        sets.reverse();
+
+        tcgdexSetsCache = sets;
+
+        select.innerHTML = '<option value="">Choisir une extension...</option>';
+        sets.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = `${s.name} (${s.cardCount.official} cartes)`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        select.innerHTML = '<option value="">Erreur de chargement</option>';
+      }
+    }
+
+    async function loadSetCards(setId) {
+      if (!setId) return;
+      const resultsContainer = document.getElementById('apiSearchResults');
+      resultsContainer.innerHTML = `<div class="col-span-full text-center py-6 text-xs text-purple-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Chargement...</div>`;
+
+      try {
+        const res = await fetch(`https://api.tcgdex.net/v2/fr/sets/${setId}`);
+        const setDetails = await res.json();
+        loadedSetCards = setDetails.cards || [];
+        renderSearchResults(loadedSetCards, setDetails.name);
+      } catch (err) {
+        resultsContainer.innerHTML = `<span class="text-xs text-red-400 col-span-full text-center py-6">Erreur réseau.</span>`;
+      }
+    }
+
+    function renderSearchResults(cards, setName) {
+      const resultsContainer = document.getElementById('apiSearchResults');
+      resultsContainer.innerHTML = '';
+      const pokemonFilter = normalizeStr(document.getElementById('apiPokemonInput').value);
+
+      const filtered = cards.filter(card => {
+        if (!pokemonFilter) return true;
+        return normalizeStr(card.name).includes(pokemonFilter);
+      });
+
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = `<span class="text-xs text-gray-500 col-span-full text-center py-6">Aucune carte trouvée.</span>`;
+        return;
+      }
+
+      filtered.forEach(card => {
+        const item = document.createElement('div');
+        item.className = 'bg-dark-800 border border-gray-700 rounded-xl p-2 cursor-pointer hover:border-purple-500 text-center transition flex flex-col justify-between group';
+        const imgUrl = card.image ? `${card.image}/low.png` : '';
+
+        item.innerHTML = `
+          <div class="aspect-[3/4] bg-dark-900 rounded-lg overflow-hidden mb-1 flex items-center justify-center">
+            ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-contain transition duration-300 group-hover:scale-110">` : `<i class="fa-solid fa-image text-gray-600"></i>`}
+          </div>
+          <span class="text-[11px] font-bold text-white line-clamp-1">${card.name}</span>
+          <span class="text-[9px] text-gray-400">${card.localId || card.id}</span>
+        `;
+
+        item.onclick = async () => {
+          document.getElementById('formCardName').value = card.name || '';
+          document.getElementById('formCardNumber').value = card.localId || '';
+          document.getElementById('formCardSet').value = setName;
+          
+          if (card.image) {
+            const highImgUrl = `${card.image}/high.png`;
+            document.getElementById('formCardImage').value = highImgUrl;
+            updateImagePreview(highImgUrl);
+          }
+
+          try {
+            const detailRes = await fetch(`https://api.tcgdex.net/v2/fr/cards/${card.id}`);
+            const cardDetail = await detailRes.json();
+            if (cardDetail.set && cardDetail.set.name) {
+              document.getElementById('formCardSet').value = cardDetail.set.name;
+            }
+          } catch(e) {}
+        };
+
+        resultsContainer.appendChild(item);
+      });
+    }
+
+    function renderPagesCheckboxes(selectedPages = []) {
+      const container = document.getElementById('formPagesCheckboxes');
+      container.innerHTML = '';
+
+      if (customPages.length === 0) {
+        container.innerHTML = `<span class="text-xs text-gray-500">Aucune page perso créée. Cliquez sur le bouton "+" en haut.</span>`;
+        return;
+      }
+
+      customPages.forEach(page => {
+        const isChecked = selectedPages.includes(page);
+        const label = document.createElement('label');
+        label.className = 'flex items-center space-x-2 bg-dark-900 px-3 py-1.5 rounded-xl border border-gray-700 cursor-pointer text-xs text-gray-200 hover:border-purple-500';
+        label.innerHTML = `
+          <input type="checkbox" value="${page}" ${isChecked ? 'checked' : ''} class="card-page-checkbox rounded bg-dark-800 border-gray-600 text-purple-600 focus:ring-purple-500">
+          <span>${page}</span>
+        `;
+        container.appendChild(label);
+      });
+    }
+
+    function openManagePagesModal() {
+      const container = document.getElementById('managePagesListContainer');
+      container.innerHTML = '';
+
+      if (customPages.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-500 text-center py-4">Aucune page personnalisée.</p>`;
+      } else {
+        customPages.forEach((page, index) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between bg-dark-900 p-2.5 rounded-xl border border-gray-700 gap-2';
+          row.innerHTML = `
+            <span class="text-xs font-semibold text-white truncate flex-1">${page}</span>
+            <div class="flex items-center space-x-1">
+              <button onclick="movePage(${index}, -1)" ${index === 0 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''} class="px-2 py-1 rounded-lg bg-gray-800 text-gray-300 hover:text-white text-xs transition" title="Monter"><i class="fa-solid fa-arrow-up"></i></button>
+              <button onclick="movePage(${index}, 1)" ${index === customPages.length - 1 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''} class="px-2 py-1 rounded-lg bg-gray-800 text-gray-300 hover:text-white text-xs transition" title="Descendre"><i class="fa-solid fa-arrow-down"></i></button>
+              <button onclick="renamePage(${index})" class="px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-400 text-xs transition ml-1" title="Renommer"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="deletePage(${index})" class="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 text-xs transition" title="Supprimer"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+      }
+      document.getElementById('managePagesModal').classList.remove('hidden');
+    }
+
+    window.movePage = function(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= customPages.length) return;
+      const item = customPages.splice(index, 1)[0];
+      customPages.splice(newIndex, 0, item);
+      saveAppData();
+      openManagePagesModal();
+    };
+
+    window.renamePage = function(index) {
+      const oldName = customPages[index];
+      const newName = prompt(`Renommer la page "${oldName}" en :`, oldName);
+      if (newName && newName.trim() !== '' && newName.trim() !== oldName) {
+        const cleanNew = newName.trim();
+        customPages[index] = cleanNew;
+        inventory.forEach(c => {
+          if (c.pages && c.pages.includes(oldName)) {
+            c.pages = c.pages.map(p => p === oldName ? cleanNew : p);
+          }
+        });
+        if (currentView === oldName) currentView = cleanNew;
+        saveAppData();
+        openManagePagesModal();
+      }
+    };
+
+    window.deletePage = function(index) {
+      const pageName = customPages[index];
+      if (confirm(`Supprimer la page "${pageName}" ?`)) {
+        customPages.splice(index, 1);
+        inventory.forEach(c => { if (c.pages) c.pages = c.pages.filter(p => p !== pageName); });
+        if (currentView === pageName) currentView = 'CHASE';
+        saveAppData();
+        openManagePagesModal();
+      }
+    };
+
+    document.getElementById('managePagesBtn').onclick = openManagePagesModal;
+    document.getElementById('closeManageModalBtn').onclick = () => document.getElementById('managePagesModal').classList.add('hidden');
+    document.getElementById('closeManageModalDoneBtn').onclick = () => document.getElementById('managePagesModal').classList.add('hidden');
+
+    document.getElementById('viewChaseBtn').onclick = () => { currentView = 'CHASE'; renderApp(); };
+    document.getElementById('viewOwnedBtn').onclick = () => { currentView = 'OWNED'; renderApp(); };
+
+    document.getElementById('addNewPageBtn').onclick = () => {
+      const pageName = prompt('Nom de la nouvelle page (ex: Master Set 151) :');
+      if (pageName && pageName.trim() !== '') {
+        const cleanName = pageName.trim();
+        if (!customPages.includes(cleanName)) {
+          customPages.push(cleanName);
+          currentView = cleanName;
+          saveAppData();
+        }
+      }
+    };
+
+    const modal = document.getElementById('searchModal');
+    document.getElementById('openSearchModalBtn').onclick = () => {
+      editingCardId = null;
+      document.getElementById('modalTitle').innerText = 'Ajouter une Chase Card';
+      document.getElementById('formCardName').value = '';
+      document.getElementById('formCardSet').value = '';
+      document.getElementById('formCardNumber').value = '';
+      document.getElementById('formCardStatus').value = 'CHASE';
+      document.getElementById('formCardOrigin').value = 'PULL';
+      document.getElementById('formCardBuyPrice').value = '';
+      document.getElementById('formCardMarketPrice').value = '';
+      document.getElementById('formCardMarketUrl').value = '';
+      document.getElementById('formCardImage').value = '';
+      updateImagePreview('');
+      toggleOriginFieldsVisibility();
+      renderPagesCheckboxes([]);
+      modal.classList.remove('hidden');
+      fetchTCGdexSets();
+    };
+
+    document.getElementById('closeSearchModalBtn').onclick = () => modal.classList.add('hidden');
+    document.getElementById('cancelAddBtn').onclick = () => modal.classList.add('hidden');
+
+    document.getElementById('triggerSetSearchBtn').onclick = () => {
+      const setId = document.getElementById('apiSetSelect').value;
+      if (setId) loadSetCards(setId);
+    };
+
+    document.getElementById('apiSetSelect').onchange = (e) => {
+      const setId = e.target.value;
+      if (setId) loadSetCards(setId);
+    };
+
+    document.getElementById('apiPokemonInput').oninput = () => {
+      if (loadedSetCards.length > 0) {
+        renderSearchResults(loadedSetCards, document.getElementById('formCardSet').value || '');
+      }
+    };
+
+    window.openEditModal = function(id) {
+      const card = inventory.find(c => c.id === id);
+      if (!card) return;
+      editingCardId = id;
+      document.getElementById('modalTitle').innerText = 'Éditer la carte';
+      document.getElementById('formCardName').value = card.name || '';
+      document.getElementById('formCardSet').value = card.setName || '';
+      document.getElementById('formCardNumber').value = card.number || '';
+      document.getElementById('formCardStatus').value = card.status || 'CHASE';
+      document.getElementById('formCardOrigin').value = card.origin || 'PULL';
+      document.getElementById('formCardBuyPrice').value = card.buyPrice || '';
+      document.getElementById('formCardMarketPrice').value = card.marketPrice || '';
+      document.getElementById('formCardMarketUrl').value = card.cardmarketUrl || '';
+      document.getElementById('formCardImage').value = card.image || '';
+      updateImagePreview(card.image || '');
+      toggleOriginFieldsVisibility();
+      renderPagesCheckboxes(card.pages || []);
+      modal.classList.remove('hidden');
+    };
+
+    window.markAsOwnedAndEdit = function(id) {
+      const card = inventory.find(c => c.id === id);
+      if (card) {
+        card.status = 'OWNED';
+        card._justObtained = true;
+        playSuccessSoundAndConfetti();
+        saveAppData();
+        openEditModal(id);
+      }
+    };
+
+    window.deleteCard = function(id) {
+      if (confirm('Supprimer cette carte ?')) {
+        inventory = inventory.filter(c => c.id !== id);
+        saveAppData();
+      }
+    };
+
+    document.getElementById('saveCardBtn').onclick = () => {
+      const name = document.getElementById('formCardName').value.trim();
+      if (!name) {
+        alert('Le nom de la carte est obligatoire.');
+        return;
+      }
+
+      const selectedPages = [];
+      document.querySelectorAll('.card-page-checkbox:checked').forEach(cb => selectedPages.push(cb.value));
+      const status = document.getElementById('formCardStatus').value;
+      const origin = status === 'OWNED' ? document.getElementById('formCardOrigin').value : 'PULL';
+      const buyPrice = (status === 'OWNED' && origin === 'BUY') ? (parseFloat(document.getElementById('formCardBuyPrice').value) || 0) : 0;
+
+      if (editingCardId) {
+        const card = inventory.find(c => c.id === editingCardId);
+        if (card) {
+          card.name = name;
+          card.setName = document.getElementById('formCardSet').value.trim() || 'Extension';
+          card.number = document.getElementById('formCardNumber').value.trim() || '-';
+          card.origin = origin;
+          card.buyPrice = buyPrice;
+          card.marketPrice = parseFloat(document.getElementById('formCardMarketPrice').value) || 0;
+          card.cardmarketUrl = document.getElementById('formCardMarketUrl').value.trim();
+          card.image = document.getElementById('formCardImage').value.trim();
+          card.status = status;
+          card.pages = selectedPages;
+        }
+      } else {
+        const newCard = {
+          id: 'card-' + Date.now(),
+          name: name,
+          setName: document.getElementById('formCardSet').value.trim() || 'Extension',
+          number: document.getElementById('formCardNumber').value.trim() || '-',
+          origin: origin,
+          buyPrice: buyPrice,
+          marketPrice: parseFloat(document.getElementById('formCardMarketPrice').value) || 0,
+          cardmarketUrl: document.getElementById('formCardMarketUrl').value.trim(),
+          image: document.getElementById('formCardImage').value.trim(),
+          status: status,
+          pages: selectedPages,
+          addedAt: Date.now()
+        };
+        inventory.unshift(newCard);
+      }
+
+      saveAppData();
+      modal.classList.add('hidden');
+    };
+
+    document.getElementById('filterSearchInput').oninput = renderApp;
+    document.getElementById('filterSetSelect').onchange = renderApp;
+    document.getElementById('sortBySelect').onchange = renderApp;
+
+    document.getElementById('exportDataBtn').onclick = () => {
+      const blob = new Blob([JSON.stringify({ inventory, customPages }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pokevault_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    };
+
+    document.getElementById('importFileInput').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (Array.isArray(imported)) inventory = imported;
+          else if (imported.inventory) {
+            inventory = imported.inventory;
+            customPages = imported.customPages || customPages;
+          }
+          saveAppData();
+          alert('Import réussi !');
+        } catch (err) {
+          alert('Erreur de lecture du fichier.');
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    renderApp();
+  </script>
+</body>
+</html>
